@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { X_PERSONAS, X_PERSONA_MAP } from '@/lib/x-personas'
 
 const XAI_API_KEY = process.env.XAI_API_KEY
-const XAI_MODEL = process.env.XAI_MODEL || 'grok-4-1-fast-reasoning'
+const XAI_MODEL = process.env.XAI_MODEL || 'grok-4-0709'
 const X_BEARER_TOKEN = process.env.X_BEARER_TOKEN
 const BRAVE_API_KEY = process.env.BRAVE_API_KEY
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY
