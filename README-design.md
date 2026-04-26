@@ -1,0 +1,32 @@
+- Change every page content whever there is worldlens to signal, my company is rebranded from worldlens to signal.
+- use font-mono across the entire website. 
+- i want the font to appear vividly as well as the background image of my website. i want the below liquid glass theme.
+LIQUID GLASS CSS (in 
+@layer
+ components)
+Two variants — .liquid-glass (subtle) and .liquid-glass-strong (more visible):
+
+.liquid-glass:
+
+background: rgba(255, 255, 255, 0.01);
+background-blend-mode: luminosity;
+backdrop-filter: blur(4px);
+border: none;
+box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
+position: relative;
+overflow: hidden;
+::before pseudo-element — a gradient border mask:
+
+content: '';
+position: absolute; inset: 0;
+border-radius: inherit;
+padding: 1.4px;
+background: linear-gradient(180deg,
+  rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.15) 20%,
+  rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%,
+  rgba(255,255,255,0.15) 80%, rgba(255,255,255,0.45) 100%);
+-webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+-webkit-mask-composite: xor;
+mask-composite: exclude;
+pointer-events: none;
+.liquid-glass-strong: Same but backdrop-filter: blur(50px), stronger box-shadow: 4px 4px 4px rgba(0,0,0,0.05), inset 0 1px 1px rgba(255,255,255,0.15), and slightly higher gradient opacity (0.5 / 0.2).
