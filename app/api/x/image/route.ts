@@ -218,6 +218,11 @@ export async function POST(req: Request): Promise<Response> {
   const cleanTopic = (topic || '').trim()
   if (!cleanTopic) return Response.json({ error: 'topic is required' }, { status: 400 })
 
+  console.log('[image] topic:', cleanTopic)
+  console.log('[image] candidateUrls:', candidateUrls?.length)
+  console.log('[image] has X_BEARER_TOKEN:', !!X_BEARER_TOKEN)
+  console.log('[image] has BRAVE_API_KEY:', !!BRAVE_API_KEY)
+
   const ogSeed = await Promise.all(
     (candidateUrls || []).slice(0, 4).map((u) => fetchOgImage(u, 'og_image'))
   )
@@ -240,9 +245,18 @@ export async function POST(req: Request): Promise<Response> {
       return false
     }
   }
+  
 
-  const merged = [...ogSeed.filter((v): v is ImageCandidate => Boolean(v)), ...pools.flat()]
-    .filter((item) => !isBlocked(item.image_url))
+  const merged = [...ogSeed.filter((v): v is ImageCandidate => Boolean(v)), ...pools.flat()].filter((item) => !isBlocked(item.image_url))
+  console.log('[image] merged count:', merged.length)
+  console.log('[image] ogSeed count:', ogSeed.filter((v): v is ImageCandidate => Boolean(v)).length)
+  console.log('[image] pools count:', pools.map((p) => p.length))
+  console.log('[image] blocked count:', merged.filter((item) => isBlocked(item.image_url)).length)
+  console.log('[image] blocked urls:', merged.filter((item) => isBlocked(item.image_url)).map((item) => item.image_url))
+  console.log('[image] merged urls:', merged.map((item) => item.image_url))
+  console.log('[image] merged sources:', merged.map((item) => item.source))
+  console.log('[image] merged reasons:', merged.map((item) => item.reason))
+  console.log('[image] merged scores:', merged.map((item) => item.score))
   const deduped = new Map<string, ImageCandidate>()
   for (const item of merged) {
     if (!deduped.has(item.image_url)) deduped.set(item.image_url, item)
