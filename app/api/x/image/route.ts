@@ -1,3 +1,7 @@
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const maxDuration = 30
+
 type ImageCandidate = {
   image_url: string
   source: string
@@ -15,6 +19,31 @@ const OUTLET_RSS = [
   'https://www.npr.org/rss/rss.php?id=1001',
   'https://www.cnbc.com/id/100003114/device/rss/rss.html',
 ]
+
+const BROWSER_HEADERS: Record<string, string> = {
+  'User-Agent':
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+  'Accept-Language': 'en-US,en;q=0.9',
+  'Cache-Control': 'no-cache',
+}
+
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit = {},
+  ms = 4000,
+): Promise<Response | null> {
+  try {
+    const res = await fetch(url, {
+      cache: 'no-store',
+      ...init,
+      signal: AbortSignal.timeout(ms),
+    })
+    return res
+  } catch {
+    return null
+  }
+}
 
 function textIncludesTopic(text: string, topic: string): boolean {
   const t = topic.toLowerCase().trim()
@@ -39,9 +68,9 @@ function pickOgImage(html: string): string | null {
 }
 
 async function fetchOgImage(url: string, source: string): Promise<ImageCandidate | null> {
+  const res = await fetchWithTimeout(url, { headers: BROWSER_HEADERS }, 4500)
+  if (!res || !res.ok) return null
   try {
-    const res = await fetch(url, { cache: 'no-store' })
-    if (!res.ok) return null
     const html = await res.text()
     const image = pickOgImage(html)
     if (!image) return null
@@ -57,10 +86,10 @@ async function fetchOgImage(url: string, source: string): Promise<ImageCandidate
 }
 
 async function fromGoogleNews(topic: string): Promise<ImageCandidate[]> {
+  const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(topic)}&hl=en-US&gl=US&ceid=US:en`
+  const res = await fetchWithTimeout(rssUrl, { headers: BROWSER_HEADERS }, 4000)
+  if (!res || !res.ok) return []
   try {
-    const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(topic)}&hl=en-US&gl=US&ceid=US:en`
-    const res = await fetch(rssUrl, { cache: 'no-store' })
-    if (!res.ok) return []
     const xml = await res.text()
     const linkMatches = [...xml.matchAll(/<link>(https?:\/\/[^<]+)<\/link>/g)].map((m) => m[1])
     const links = linkMatches.filter((l) => !l.includes('news.google.com')).slice(0, 4)
@@ -74,9 +103,9 @@ async function fromGoogleNews(topic: string): Promise<ImageCandidate[]> {
 async function fromOutletRss(topic: string): Promise<ImageCandidate[]> {
   const results = await Promise.all(
     OUTLET_RSS.map(async (rss) => {
+      const res = await fetchWithTimeout(rss, { headers: BROWSER_HEADERS }, 3500)
+      if (!res || !res.ok) return [] as ImageCandidate[]
       try {
-        const res = await fetch(rss, { cache: 'no-store' })
-        if (!res.ok) return [] as ImageCandidate[]
         const xml = await res.text()
         const items = xml.split('<item>').slice(0, 8)
         const matches = items
@@ -94,26 +123,26 @@ async function fromOutletRss(topic: string): Promise<ImageCandidate[]> {
       } catch {
         return [] as ImageCandidate[]
       }
-    })
+    }),
   )
   return results.flat()
 }
 
 async function fromReddit(topic: string): Promise<ImageCandidate[]> {
+  const url = `https://www.reddit.com/search.json?q=${encodeURIComponent(topic)}&sort=hot&limit=12`
+  const res = await fetchWithTimeout(
+    url,
+    { headers: { ...BROWSER_HEADERS, 'User-Agent': 'web:signal-lens:1.0 (by /u/signal-lens)' } },
+    4000,
+  )
+  if (!res || !res.ok) return []
   try {
-    const url = `https://www.reddit.com/search.json?q=${encodeURIComponent(topic)}&sort=hot&limit=12`
-    const res = await fetch(url, { cache: 'no-store', headers: { 'User-Agent': 'SignalLens/1.0' } })
-    if (!res.ok) return []
     const data = (await res.json()) as {
       data?: {
         children?: Array<{
           data?: {
             thumbnail?: string
-            preview?: {
-              images?: Array<{
-                source?: { url?: string }
-              }>
-            }
+            preview?: { images?: Array<{ source?: { url?: string } }> }
           }
         }>
       }
@@ -139,10 +168,10 @@ async function fromReddit(topic: string): Promise<ImageCandidate[]> {
 }
 
 async function fromHn(topic: string): Promise<ImageCandidate[]> {
+  const url = `https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(topic)}&tags=story&hitsPerPage=10`
+  const res = await fetchWithTimeout(url, {}, 3500)
+  if (!res || !res.ok) return []
   try {
-    const url = `https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(topic)}&tags=story&hitsPerPage=10`
-    const res = await fetch(url, { cache: 'no-store' })
-    if (!res.ok) return []
     const data = (await res.json()) as { hits?: Array<{ url?: string }> }
     const links = (data.hits || []).map((h) => h.url).filter((u): u is string => Boolean(u)).slice(0, 3)
     const out = await Promise.all(links.map((link) => fetchOgImage(link, 'hn')))
@@ -154,16 +183,14 @@ async function fromHn(topic: string): Promise<ImageCandidate[]> {
 
 async function fromBrave(topic: string): Promise<ImageCandidate[]> {
   if (!BRAVE_API_KEY) return []
+  const url = `https://api.search.brave.com/res/v1/news/search?q=${encodeURIComponent(topic)}&count=8`
+  const res = await fetchWithTimeout(
+    url,
+    { headers: { Accept: 'application/json', 'X-Subscription-Token': BRAVE_API_KEY } },
+    4000,
+  )
+  if (!res || !res.ok) return []
   try {
-    const url = `https://api.search.brave.com/res/v1/news/search?q=${encodeURIComponent(topic)}&count=8`
-    const res = await fetch(url, {
-      cache: 'no-store',
-      headers: {
-        Accept: 'application/json',
-        'X-Subscription-Token': BRAVE_API_KEY,
-      },
-    })
-    if (!res.ok) return []
     const data = (await res.json()) as {
       results?: Array<{ thumbnail?: { src?: string }; title?: string }>
     }
@@ -187,14 +214,15 @@ async function fromBrave(topic: string): Promise<ImageCandidate[]> {
 
 async function fromXApi(topic: string): Promise<ImageCandidate[]> {
   if (!X_BEARER_TOKEN) return []
+  const q = encodeURIComponent(`${topic} has:images -is:retweet lang:en`)
+  const url = `https://api.twitter.com/2/tweets/search/recent?query=${q}&max_results=10&expansions=attachments.media_keys&media.fields=type,url,preview_image_url`
+  const res = await fetchWithTimeout(
+    url,
+    { headers: { Authorization: `Bearer ${X_BEARER_TOKEN}` } },
+    4000,
+  )
+  if (!res || !res.ok) return []
   try {
-    const q = encodeURIComponent(`${topic} has:images -is:retweet lang:en`)
-    const url = `https://api.twitter.com/2/tweets/search/recent?query=${q}&max_results=10&expansions=attachments.media_keys&media.fields=type,url,preview_image_url`
-    const res = await fetch(url, {
-      cache: 'no-store',
-      headers: { Authorization: `Bearer ${X_BEARER_TOKEN}` },
-    })
-    if (!res.ok) return []
     const data = (await res.json()) as {
       includes?: { media?: Array<{ type?: string; url?: string; preview_image_url?: string }> }
     }
@@ -213,6 +241,16 @@ async function fromXApi(topic: string): Promise<ImageCandidate[]> {
   }
 }
 
+function fallbackImage(topic: string): ImageCandidate {
+  const seed = encodeURIComponent(topic.toLowerCase().replace(/\s+/g, '-').slice(0, 60) || 'signal')
+  return {
+    image_url: `https://picsum.photos/seed/${seed}/1024/640`,
+    source: 'fallback',
+    reason: 'Deterministic placeholder when no upstream source returned an image',
+    score: 0.05,
+  }
+}
+
 export async function POST(req: Request): Promise<Response> {
   const { topic, candidateUrls = [] } = (await req.json()) as { topic?: string; candidateUrls?: string[] }
   const cleanTopic = (topic || '').trim()
@@ -224,17 +262,18 @@ export async function POST(req: Request): Promise<Response> {
   console.log('[image] has BRAVE_API_KEY:', !!BRAVE_API_KEY)
 
   const ogSeed = await Promise.all(
-    (candidateUrls || []).slice(0, 4).map((u) => fetchOgImage(u, 'og_image'))
+    (candidateUrls || []).slice(0, 4).map((u) => fetchOgImage(u, 'og_image')),
   )
 
-  const pools = await Promise.all([
+  const settled = await Promise.allSettled([
+    fromBrave(cleanTopic),
+    fromXApi(cleanTopic),
     fromGoogleNews(cleanTopic),
     fromOutletRss(cleanTopic),
     fromReddit(cleanTopic),
     fromHn(cleanTopic),
-    fromBrave(cleanTopic),
-    fromXApi(cleanTopic),
   ])
+  const pools = settled.map((p) => (p.status === 'fulfilled' ? p.value : []))
 
   const blocked = ['wikipedia.org', 'wikimedia.org', 'wikidata.org', 'upload.wikimedia.org']
   const isBlocked = (url: string) => {
@@ -245,31 +284,29 @@ export async function POST(req: Request): Promise<Response> {
       return false
     }
   }
-  
 
-  const merged = [...ogSeed.filter((v): v is ImageCandidate => Boolean(v)), ...pools.flat()].filter((item) => !isBlocked(item.image_url))
+  const merged = [...ogSeed.filter((v): v is ImageCandidate => Boolean(v)), ...pools.flat()].filter(
+    (item) => !isBlocked(item.image_url),
+  )
   console.log('[image] merged count:', merged.length)
   console.log('[image] ogSeed count:', ogSeed.filter((v): v is ImageCandidate => Boolean(v)).length)
-  console.log('[image] pools count:', pools.map((p) => p.length))
-  console.log('[image] blocked count:', merged.filter((item) => isBlocked(item.image_url)).length)
-  console.log('[image] blocked urls:', merged.filter((item) => isBlocked(item.image_url)).map((item) => item.image_url))
-  console.log('[image] merged urls:', merged.map((item) => item.image_url))
-  console.log('[image] merged sources:', merged.map((item) => item.source))
-  console.log('[image] merged reasons:', merged.map((item) => item.reason))
-  console.log('[image] merged scores:', merged.map((item) => item.score))
+  console.log('[image] pool counts [brave,x,gnews,rss,reddit,hn]:', pools.map((p) => p.length))
+  console.log('[image] sources:', merged.map((item) => item.source))
+
   const deduped = new Map<string, ImageCandidate>()
   for (const item of merged) {
     if (!deduped.has(item.image_url)) deduped.set(item.image_url, item)
   }
   const ranked = [...deduped.values()].sort((a, b) => b.score - a.score)
-  const top = ranked[0] || null
+  const top = ranked[0] || fallbackImage(cleanTopic)
+  const candidates = ranked.length ? ranked.slice(0, 8) : [top]
 
   return Response.json({
     topic: cleanTopic,
-    image_url: top?.image_url || null,
-    image_source: top?.source || null,
-    image_kind: 'web',
-    reason: top?.reason || null,
-    candidates: ranked.slice(0, 8),
+    image_url: top.image_url,
+    image_source: top.source,
+    image_kind: top.source === 'fallback' ? 'fallback' : 'web',
+    reason: top.reason,
+    candidates,
   })
 }
