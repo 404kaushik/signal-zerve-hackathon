@@ -1236,7 +1236,7 @@ Generate ${promptBatchSize} posts covering diverse topics. Each must feel native
             .filter((post) => post._has_image)
             .map(async (post) => {
               try {
-                const imageRes = await fetch(`${origin}/api/x/image`, {
+                const imageRes = await fetch(`${origin}/api/x/image2`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
