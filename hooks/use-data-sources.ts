@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 
-interface DataSource {
+export interface DataSource {
   id: string
   name: string
   enabled: boolean
@@ -11,7 +11,7 @@ interface DataSource {
   errorMessage?: string
 }
 
-interface UseDataSourcesReturn {
+export interface UseDataSourcesReturn {
   sources: DataSource[]
   toggleSource: (sourceId: string) => void
   refreshSource: (sourceId: string) => void

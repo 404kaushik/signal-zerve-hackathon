@@ -2,13 +2,13 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 
-interface UseAIStreamingOptions {
+export interface UseAIStreamingOptions {
   endpoint: string
   autoStart?: boolean
   retries?: number
 }
 
-interface UseAIStreamingReturn {
+export interface UseAIStreamingReturn {
   response: string
   isStreaming: boolean
   isComplete: boolean

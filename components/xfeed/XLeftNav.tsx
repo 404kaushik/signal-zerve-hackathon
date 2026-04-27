@@ -28,7 +28,11 @@ const ITEMS = [
   { label: 'More',       icon: More01Icon,         active: false },
 ]
 
-export function XLeftNav() {
+interface XLeftNavProps {
+  generating?: boolean
+}
+
+export function XLeftNav({ generating = false }: XLeftNavProps) {
   return (
     <aside className="hidden lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:justify-between lg:px-3 lg:py-5">
       <div>
@@ -53,6 +57,17 @@ export function XLeftNav() {
        
           </div>
         </div>
+
+        {generating && (
+          <div className="mb-4 border border-white/[0.08] bg-red-500/20 rounded-xl px-3 py-2">
+            <div className="flex items-center gap-2 justify-center">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#7bc49a]" />
+              <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-white">
+                please stay on this page while the ai research agent loads
+              </span>
+            </div>
+          </div>
+        )}
 
         <nav className="space-y-[2px]">
           {ITEMS.map((item, idx) => (

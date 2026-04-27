@@ -112,7 +112,7 @@ export default function XPage() {
   return (
     <div className="min-h-screen  text-white/90 font-sans antialiased">
       <div className="mx-auto grid max-w-[1280px] lg:grid-cols-[260px_minmax(0,620px)_minmax(280px,340px)] lg:gap-4">
-        <XLeftNav />
+        <XLeftNav generating={generating} />
 
         <main className="relative min-h-screen border-x border-white/[0.06] bg-[#070707]/90">
           <div className="sticky top-0 z-20 border-b border-white/[0.06] bg-[#050505]/85 px-5 py-4 backdrop-blur-xl backdrop-saturate-150">
