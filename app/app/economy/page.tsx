@@ -51,6 +51,7 @@ export default function EconomyPage() {
   const [selected, setSelected] = useState<string | null>(null)
   const [range, setRange] = useState<RangeKey>('1mo')
   const [searchQuery, setSearchQuery] = useState('')
+  const [showSearchResults, setShowSearchResults] = useState(false)
   const debouncedSearch = useDebouncedValue(searchQuery.trim(), 300)
 
   const overviewAPI = useAPI<EconomyOverview>(fetchEconomyOverview)
@@ -81,7 +82,11 @@ export default function EconomyPage() {
   }, [selected, range])
 
   useEffect(() => {
-    if (!debouncedSearch) return
+    if (!debouncedSearch) {
+      setShowSearchResults(false)
+      return
+    }
+    setShowSearchResults(true)
     void searchAPI.refetch()
   }, [debouncedSearch])
 
@@ -148,13 +153,16 @@ export default function EconomyPage() {
             <HugeIcon name="Search01Icon" size={14} className="text-[#888888]" />
             <input
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value)
+                setShowSearchResults(true)
+              }}
               placeholder="Search ticker or company..."
-              className="w-full bg-transparent text-[11px] text-[#d0d0d0] placeholder:text-[#555555] outline-none"
+              className="w-full text-[11px] text-[#d0d0d0] placeholder:text-[#555555] outline-none"
             />
           </div>
 
-          {!!searchResults.length && (
+          {!!searchResults.length && showSearchResults && (
             <div className="liquid-glass-strong absolute left-0 right-0 top-[calc(100%+4px)] z-50 border border-[#1a1a1a] p-1 shadow-xl">
               {searchResults.map((result) => (
                 <button
@@ -163,8 +171,9 @@ export default function EconomyPage() {
                   onClick={() => {
                     setSelected(result.symbol)
                     setSearchQuery(result.symbol)
+                    setShowSearchResults(false)
                   }}
-                  className="flex w-full items-center justify-between px-2 py-2 text-left hover:bg-[#0d0d0d]"
+                  className="flex w-full items-center justify-between px-2 py-2 text-left bg-[#0d0d0d]"
                 >
                   <span className="text-[11px] text-[#e8e8e8]">
                     {result.symbol} - {result.shortName}

@@ -13,6 +13,7 @@ const INDEX_SYMBOLS = [
   { symbol: '^TNX', shortName: 'US 10Y' },
   { symbol: 'DX-Y.NYB', shortName: 'DXY' },
 ] as const
+const YAHOO_TIMEOUT_MS = 7000
 
 type MoverRow = {
   symbol: string
@@ -26,16 +27,34 @@ function toNumber(value: unknown): number | null {
   return value
 }
 
+async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return await Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`Timeout after ${ms}ms (${label})`)), ms)
+    ),
+  ])
+}
+
 async function getSpark(symbol: string) {
-  const period1 = new Date(Date.now() - 24 * 60 * 60 * 1000)
-  const chart = await yf.chart(symbol, { period1, interval: '15m' })
-  return (chart.quotes || [])
-    .filter((row) => row.date && typeof row.close === 'number')
-    .slice(-20)
-    .map((row) => ({
-      t: row.date.getTime(),
-      v: row.close as number,
-    }))
+  try {
+    const period1 = new Date(Date.now() - 24 * 60 * 60 * 1000)
+    const chart = await withTimeout(
+      yf.chart(symbol, { period1, interval: '15m' }),
+      YAHOO_TIMEOUT_MS,
+      `chart:${symbol}`
+    )
+    return (chart.quotes || [])
+      .filter((row) => row.date && typeof row.close === 'number')
+      .slice(-20)
+      .map((row) => ({
+        t: row.date.getTime(),
+        v: row.close as number,
+      }))
+  } catch (error) {
+    console.warn(`[economy/overview] spark failed for ${symbol}:`, error)
+    return []
+  }
 }
 
 function mapMoverRows(rows: any[]): MoverRow[] {
@@ -48,14 +67,34 @@ function mapMoverRows(rows: any[]): MoverRow[] {
 }
 
 async function getMovers(scrId: 'day_gainers' | 'day_losers' | 'most_actives') {
-  const result = await yf.screener({ scrIds: scrId, count: 8, region: 'US', lang: 'en-US' })
-  return mapMoverRows(result.quotes ?? [])
+  try {
+    const result = await withTimeout(
+      yf.screener({ scrIds: scrId, count: 8, region: 'US', lang: 'en-US' }),
+      YAHOO_TIMEOUT_MS,
+      `screener:${scrId}`
+    )
+    return mapMoverRows(result.quotes ?? [])
+  } catch (error) {
+    // Yahoo screener payloads can drift and trip schema validation.
+    // Keep the endpoint alive with partial data instead of hard failing.
+    console.warn(`[economy/overview] screener failed for ${scrId}:`, error)
+    return []
+  }
+}
+
+async function getIndexQuote(symbol: string) {
+  try {
+    return await withTimeout(yf.quote(symbol), YAHOO_TIMEOUT_MS, `quote:${symbol}`)
+  } catch (error) {
+    console.warn(`[economy/overview] quote failed for ${symbol}:`, error)
+    return null
+  }
 }
 
 export async function GET() {
   try {
     const quotes = await Promise.all(
-      INDEX_SYMBOLS.map(({ symbol }) => yf.quote(symbol))
+      INDEX_SYMBOLS.map(({ symbol }) => getIndexQuote(symbol))
     )
 
     const sparks = await Promise.all(
@@ -69,11 +108,11 @@ export async function GET() {
     ])
 
     const indices = quotes.map((quote, index) => ({
-      symbol: quote.symbol,
-      shortName: quote.shortName ?? quote.longName ?? INDEX_SYMBOLS[index].shortName,
-      price: toNumber(quote.regularMarketPrice),
-      change: toNumber(quote.regularMarketChange),
-      changePct: toNumber(quote.regularMarketChangePercent),
+      symbol: quote?.symbol ?? INDEX_SYMBOLS[index].symbol,
+      shortName: quote?.shortName ?? quote?.longName ?? INDEX_SYMBOLS[index].shortName,
+      price: toNumber(quote?.regularMarketPrice),
+      change: toNumber(quote?.regularMarketChange),
+      changePct: toNumber(quote?.regularMarketChangePercent),
       spark: sparks[index],
     }))
 

@@ -1,17 +1,63 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { useAPI } from '@/hooks/use-api'
 import { getHostedSentiment, getHostedTop, getHostedTrendingDaily } from '@/lib/api'
 import { TerminalPanel, MetricBox } from '@/components/worldlens/terminal-panel'
+
+type TodayBriefPayload = {
+  asOf: string
+  lead: string
+  lines: string[]
+}
 
 export default function BriefingPage() {
   const { data: sentiment, loading, error: sentimentError } = useAPI(getHostedSentiment)
   const { data: top, error: topError } = useAPI(getHostedTop)
   const { data: trending, error: trendingError } = useAPI(getHostedTrendingDaily)
+  const [todayBrief, setTodayBrief] = useState<TodayBriefPayload | null>(null)
+  const [todayLoading, setTodayLoading] = useState(true)
 
   const rising = trending?.rising || []
   const topSignals = top?.signals || []
   const anyError = sentimentError || topError || trendingError
+  const fallbackLead = `Till the exact moment of ${new Date().toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
+  })} on ${new Date().toLocaleDateString([], { month: 'long', day: 'numeric' })}, this has happened:`
+  const fallbackLines = rising.slice(0, 6).map(
+    (item) =>
+      `${item.title || 'Market signal'} moved ${item.daily_direction || 'today'} with delta ${
+        item.daily_delta ?? '--'
+      } and score ${item.trending_score ?? 0}.`
+  )
+  const displayLead = todayBrief?.lead || fallbackLead
+  const displayLines =
+    todayBrief?.lines?.filter(Boolean).length
+      ? todayBrief.lines
+      : fallbackLines.length
+        ? fallbackLines
+        : ['No major verified shift has been detected yet; monitoring live feeds for fresh updates.']
+
+  useEffect(() => {
+    let live = true
+    const run = async () => {
+      try {
+        const res = await fetch('/api/perplexity/today-brief', { cache: 'no-store' })
+        if (!res.ok) throw new Error('TODAY_BRIEF_FAILED')
+        const data = (await res.json()) as TodayBriefPayload
+        if (live) setTodayBrief(data)
+      } catch {
+        if (live) setTodayBrief(null)
+      } finally {
+        if (live) setTodayLoading(false)
+      }
+    }
+    void run()
+    return () => {
+      live = false
+    }
+  }, [])
 
   return (
     <div className="space-y-4 font-mono">
@@ -42,19 +88,19 @@ export default function BriefingPage() {
       <div className="grid lg:grid-cols-2 gap-4">
         <TerminalPanel title="WHAT CHANGED TODAY" subtitle="RISING">
           <div className="space-y-2">
-            {rising.slice(0, 6).map((item) => (
-              <div key={item.id} className="border border-[#1a1a1a] p-3">
-                <div className="text-[11px] text-[#e8e8e8]">{item.title}</div>
-                <div className="text-[10px] text-[#666666] mt-1">
-                  {item.category_emoji || ''} {item.category || '--'} | score {item.trending_score ?? 0} | Δ {item.daily_delta ?? '--'} {item.daily_direction || ''}
-                </div>
-              </div>
-            ))}
-            {!rising.length && (
+            {(loading || todayLoading) && !todayBrief && (
               <div className="text-[11px] text-[#666666]">
-                {loading ? <span className="animate-pulse">loading rising signals...</span> : 'no rising entries at this moment'}
+                <span className="animate-pulse">loading today&apos;s intel...</span>
               </div>
             )}
+            <div className="border border-[#1a1a1a] p-3">
+              <div className="text-[11px] text-[#d6d6d6] leading-relaxed">{displayLead}</div>
+              <ul className="mt-2 space-y-1 text-[11px] text-[#e8e8e8]">
+                {displayLines.slice(0, 6).map((line, idx) => (
+                  <li key={`${idx}-${line}`}>- {line}</li>
+                ))}
+              </ul>
+            </div>
           </div>
         </TerminalPanel>
 

@@ -12,9 +12,12 @@ import {
   Menu01Icon,
 } from '@hugeicons/core-free-icons'
 import { useAPI } from '@/hooks/use-api'
-import { getHostedSignals, searchHostedSignals, type HostedSignal } from '@/lib/api'
+import { getHostedSentiment, getHostedTop, getHostedTrendingDaily,getHostedSignals, searchHostedSignals, type HostedSignal } from '@/lib/api'
+import { HugeIcon } from '@/components/worldlens/huge-icon'
 import { MetricBox, TerminalPanel } from '@/components/worldlens/terminal-panel'
 import { MarketIntelPanel } from '@/components/signals/MarketIntelPanel'
+
+
 
 const CATEGORIES = ['all', 'crypto', 'economy', 'politics', 'geopolitics', 'sports', 'tech'] as const
 const CATEGORY_LABELS: Record<string, string> = {
@@ -97,6 +100,10 @@ export default function MarketsPage() {
   const [intelFetchNonce, setIntelFetchNonce] = useState(0)
   // map of market id → overridden category
   const [categoryOverrides, setCategoryOverrides] = useState<Map<string, string>>(new Map())
+  const { data: sentiment, loading: sentimentLoading } = useAPI(getHostedSentiment)
+  const { data: topData, loading: topLoading } = useAPI(getHostedTop)
+  const { data: trendingData } = useAPI(getHostedTrendingDaily)
+
 
   const allSignals = data?.signals || []
   const rows = useMemo(() => {
@@ -186,48 +193,41 @@ export default function MarketsPage() {
         <MetricBox label="CATEGORY" value={CATEGORY_LABELS[category] || category} size="small" />
         <MetricBox label="SORT" value={sortMode.toUpperCase()} size="small" />
       </div>
+      {sentiment?.most_excited_about && (
+        <TerminalPanel title="MARKET MOOD" subtitle="LIVE SENTIMENT SIGNALS">
+          <div className="grid md:grid-cols-3 gap-3">
+            <div className="border border-[#1a1a1a] p-3">
+              <div className="text-[9px] text-[#e8e8e8] mb-1 tracking-[0.15em]">MOST EXCITED ABOUT</div>
+              <div className="flex items-center gap-1.5 text-[11px] text-[#e8e8e8]">
+                <HugeIcon name="FireIcon" size={13} className="shrink-0 text-[#b5b5b5]" />
+                {sentiment.most_excited_about.label}
+              </div>
+              <div className="text-[10px] text-[#e8e8e8] mt-1">{sentiment.most_excited_about.reason}</div>
+            </div>
+            {sentiment.most_bullish_on && (
+              <div className="border border-[#1a1a1a] p-3">
+                <div className="text-[9px] text-[#e8e8e8] mb-1 tracking-[0.15em]">MOST BULLISH ON</div>
+                <div className="flex items-center gap-1.5 text-[11px] text-[#e8e8e8]">
+                  <HugeIcon name="ChartBarIncreasingIcon" size={13} className="shrink-0 text-[#b5b5b5]" />
+                  {sentiment.most_bullish_on.label}
+                </div>
+                <div className="text-[10px] text-[#e8e8e8] mt-1">{sentiment.most_bullish_on.reason}</div>
+              </div>
+            )}
+            {sentiment.most_nervous_about && (
+              <div className="border border-[#1a1a1a] p-3">
+                <div className="text-[9px] text-[#e8e8e8] mb-1 tracking-[0.15em]">MOST NERVOUS ABOUT</div>
+                <div className="flex items-center gap-1.5 text-[11px] text-[#e8e8e8]">
+                  <HugeIcon name="Alert01Icon" size={13} className="shrink-0 text-[#b5b5b5]" />
+                  {sentiment.most_nervous_about.label}
+                </div>
+                <div className="text-[10px] text-[#e8e8e8] mt-1">{sentiment.most_nervous_about.reason}</div>
+              </div>
+            )}
+          </div>
+        </TerminalPanel>
+      )}
 
-      <TerminalPanel title="FILTER CONSOLE" subtitle="LIVE /signals + /search">
-        <div className="grid lg:grid-cols-3 gap-3">
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') void onSearch()
-            }}
-            placeholder="search keyword..."
-            className="font-mono border border-[#1a1a1a] bg-transparent px-3 py-2 text-[11px] text-[#dddddd] placeholder:text-[#555555] outline-none"
-          />
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value as CategoryValue)}
-            className="font-mono border border-[#1a1a1a] bg-[#0a0a0a] px-3 py-2 text-[11px] text-[#d0d0d0] outline-none"
-          >
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {CATEGORY_LABELS[c] || c}
-              </option>
-            ))}
-          </select>
-          <button onClick={() => void onSearch()} className="font-mono border border-[#1a1a1a] px-3 py-2 text-[11px] text-[#cccccc] hover:bg-[#101010]">
-            {searchBusy ? 'SEARCHING...' : 'RUN SEARCH'}
-          </button>
-        </div>
-        <div className="mt-2 flex gap-2">
-          <button
-            onClick={() => setSortMode('volume')}
-            className={`px-3 py-1 text-[10px] border ${sortMode === 'volume' ? 'border-[#777777] text-[#e8e8e8]' : 'border-[#1a1a1a] text-[#666666]'}`}
-          >
-            SORT BY VOLUME
-          </button>
-          <button
-            onClick={() => setSortMode('score')}
-            className={`px-3 py-1 text-[10px] border ${sortMode === 'score' ? 'border-[#777777] text-[#e8e8e8]' : 'border-[#1a1a1a] text-[#666666]'}`}
-          >
-            SORT BY TREND SCORE
-          </button>
-        </div>
-      </TerminalPanel>
 
       <div className="grid lg:grid-cols-12 gap-4">
         <div className="lg:col-span-5 flex flex-col gap-3">
@@ -361,6 +361,8 @@ export default function MarketsPage() {
             className="h-[calc(100vh-16rem)] min-h-[320px] font-mono"
           />
         </TerminalPanel>
+
+        
       </div>
     </div>
   )
