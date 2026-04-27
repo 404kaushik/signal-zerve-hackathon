@@ -68,12 +68,19 @@ function mapMoverRows(rows: any[]): MoverRow[] {
 
 async function getMovers(scrId: 'day_gainers' | 'day_losers' | 'most_actives') {
   try {
-    const result = await withTimeout(
-      yf.screener({ scrIds: scrId, count: 8, region: 'US', lang: 'en-US' }),
+    // Yahoo often omits optional quote fields; strict schema validation then fails the whole
+    // screener (empty gainers/losers). We only need a few fields — skip result validation.
+    const result = (await withTimeout(
+      yf.screener(
+        { scrIds: scrId, count: 8, region: 'US', lang: 'en-US' },
+        undefined,
+        { validateResult: false }
+      ),
       YAHOO_TIMEOUT_MS,
       `screener:${scrId}`
-    )
-    return mapMoverRows(result.quotes ?? [])
+    )) as { quotes?: unknown[] }
+    const quotes = Array.isArray(result?.quotes) ? result.quotes : []
+    return mapMoverRows(quotes as Parameters<typeof mapMoverRows>[0])
   } catch (error) {
     // Yahoo screener payloads can drift and trip schema validation.
     // Keep the endpoint alive with partial data instead of hard failing.

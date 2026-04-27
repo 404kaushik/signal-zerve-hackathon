@@ -4,6 +4,24 @@ import { useEffect, useState } from 'react'
 import { useAPI } from '@/hooks/use-api'
 import { getHostedSentiment, getHostedTop, getHostedTrendingDaily } from '@/lib/api'
 import { TerminalPanel, MetricBox } from '@/components/worldlens/terminal-panel'
+import { HugeIcon } from '@/components/worldlens/huge-icon'
+
+const CATEGORY_ICON: Record<string, string> = {
+  crypto: 'Bitcoin01Icon',
+  economy: 'Analytics01Icon',
+  politics: 'Flag01Icon',
+  geopolitics: 'Globe02Icon',
+  sports: 'FootballIcon',
+  tech: 'ChipIcon',
+}
+
+function categoryIconName(key: string): string {
+  const k = key.toLowerCase().trim()
+  if (CATEGORY_ICON[k]) return CATEGORY_ICON[k]
+  const normalized = k.replace(/\s+/g, '_')
+  if (CATEGORY_ICON[normalized]) return CATEGORY_ICON[normalized]
+  return 'Tag01Icon'
+}
 
 type TodayBriefPayload = {
   asOf: string
@@ -61,8 +79,8 @@ export default function BriefingPage() {
 
   return (
     <div className="space-y-4 font-mono">
-      <div className="border border-[#1a1a1a] bg-[#0a0a0a] px-4 py-3">
-        <div className="text-[10px] tracking-[0.2em] text-[#555555]">BRIEFING</div>
+      <div className="liquid-glass-strong border border-[#1a1a1a] px-4 py-3">
+        <div className="text-[10px] tracking-[0.2em] text-[#a09e9e]">BRIEFING</div>
         <h1 className="mt-2 text-lg tracking-[0.12em] text-[#e8e8e8]">DAILY INTEL DIGEST</h1>
       </div>
 
@@ -109,7 +127,7 @@ export default function BriefingPage() {
             {topSignals.slice(0, 6).map((item) => (
               <div key={item.id} className="border border-[#1a1a1a] p-3">
                 <div className="text-[11px] text-[#e8e8e8]">{item.title}</div>
-                <div className="text-[10px] text-[#666666] mt-1">
+                <div className="text-[10px] text-[#bebebe] mt-1">
                   {item.volume?.['24h_display'] || '--'} | YES {item.market_probability?.yes || '--'} | {item.signal?.crowd_read || '--'}
                 </div>
               </div>
@@ -126,9 +144,10 @@ export default function BriefingPage() {
       <TerminalPanel title="SENTIMENT BREAKDOWN" subtitle="BY CATEGORY">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {Object.entries(sentiment?.category_breakdown || {}).map(([key, cat]) => (
-            <div key={key} className="border border-[#1a1a1a] p-3">
-              <div className="text-[10px] text-[#555555] mb-1">
-                {cat.emoji || ''} {cat.label || key.toUpperCase()}
+            <div key={key} className="liquid-glass-strong border border-[#1a1a1a] p-3">
+              <div className="flex items-center gap-1.5 text-[10px] text-[#555555] mb-1">
+                <HugeIcon name={categoryIconName(key)} size={12} className="shrink-0 text-[#777777]" strokeWidth={1.5} />
+                <span>{cat.label || key.toUpperCase()}</span>
               </div>
               <div className="text-[11px] text-[#d0d0d0]">{cat['24h_volume_display'] || '--'}</div>
               <div className="text-[10px] text-[#666666] mt-0.5">{cat.mood?.toUpperCase() || '--'} | {cat.market_count ?? 0} mkts</div>

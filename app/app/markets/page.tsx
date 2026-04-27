@@ -176,7 +176,7 @@ export default function MarketsPage() {
 
   return (
     <div className="space-y-4 font-mono">
-      <div className="border border-[#1a1a1a] bg-[#0a0a0a] px-4 py-3">
+      <div className="liquid-glass-strong border border-[#1a1a1a] px-4 py-3">
         <div className="text-[10px] tracking-[0.2em] text-[#555555]">MARKETS</div>
         <h1 className="mt-2 text-lg tracking-[0.12em] text-[#e8e8e8]">PREDICTION TAPE</h1>
       </div>

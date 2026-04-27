@@ -7,11 +7,10 @@ import { useState } from 'react'
 import { HugeIcon } from '@/components/worldlens/huge-icon'
 
 const navItems = [
-  { href: '/app', label: 'Overview', icon: 'Globe02Icon', shortcut: '01' },
+  { href: '/app/briefing', label: 'Briefing', icon: 'File02Icon', shortcut: '01' },
   { href: '/app/economy', label: 'Economy', icon: 'Analytics01Icon', shortcut: '02' },
   { href: '/app/markets', label: 'Markets', icon: 'ChartCandlestickIcon', shortcut: '03' },
-  { href: '/app/briefing', label: 'Briefing', icon: 'File02Icon', shortcut: '04' },
-  { href: '/app/x', label: 'X Feed', icon: 'Message01Icon', shortcut: '05' },
+  { href: '/app/x', label: 'Feed', icon: 'Message01Icon', shortcut: '04' },
 ]
 
 export function SidebarNav() {
