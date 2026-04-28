@@ -43,19 +43,10 @@ export default function BriefingPage() {
     hour: 'numeric',
     minute: '2-digit',
   })} on ${new Date().toLocaleDateString([], { month: 'long', day: 'numeric' })}, this has happened:`
-  const fallbackLines = rising.slice(0, 6).map(
-    (item) =>
-      `${item.title || 'Market signal'} moved ${item.daily_direction || 'today'} with delta ${
-        item.daily_delta ?? '--'
-      } and score ${item.trending_score ?? 0}.`
-  )
   const displayLead = todayBrief?.lead || fallbackLead
-  const displayLines =
-    todayBrief?.lines?.filter(Boolean).length
-      ? todayBrief.lines
-      : fallbackLines.length
-        ? fallbackLines
-        : ['No major verified shift has been detected yet; monitoring live feeds for fresh updates.']
+  const displayLines = todayBrief?.lines?.filter(Boolean).length
+    ? todayBrief.lines
+    : ['No major verified shift has been detected yet; monitoring live feeds for fresh updates.']
 
   useEffect(() => {
     let live = true
@@ -106,19 +97,21 @@ export default function BriefingPage() {
       <div className="grid lg:grid-cols-2 gap-4">
         <TerminalPanel title="WHAT CHANGED TODAY" subtitle="RISING">
           <div className="space-y-2">
-            {(loading || todayLoading) && !todayBrief && (
+            {todayLoading && !todayBrief && (
               <div className="text-[11px] text-[#666666]">
                 <span className="animate-pulse">loading today&apos;s intel...</span>
               </div>
             )}
-            <div className="border border-[#1a1a1a] p-3">
-              <div className="text-[11px] text-[#d6d6d6] leading-relaxed">{displayLead}</div>
-              <ul className="mt-2 space-y-1 text-[11px] text-[#e8e8e8]">
-                {displayLines.slice(0, 6).map((line, idx) => (
-                  <li key={`${idx}-${line}`}>- {line}</li>
-                ))}
-              </ul>
-            </div>
+            {!todayLoading && (
+              <div className="border border-[#1a1a1a] p-3">
+                <div className="text-[11px] text-[#d6d6d6] leading-relaxed">{displayLead}</div>
+                <ul className="mt-2 space-y-1 text-[11px] text-[#e8e8e8]">
+                  {displayLines.slice(0, 6).map((line, idx) => (
+                    <li key={`${idx}-${line}`}>- {line}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </TerminalPanel>
 
