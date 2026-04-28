@@ -318,7 +318,7 @@ export function SignalLanding() {
               </div>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 <Link href="/app/x" className="sl-btn-primary"><span style={{ opacity: 0.45 }}>›_</span>Open Signal feed</Link>
-                <Link href="/app" className="sl-btn-secondary">World overview →</Link>
+                <Link href="/app/briefing" className="sl-btn-secondary">World overview →</Link>
               </div>
             </div>
           </motion.section>
