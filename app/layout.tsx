@@ -4,6 +4,7 @@ import { CommandPalette } from '@/components/worldlens/command-palette'
 import { Analytics } from '@vercel/analytics/next'
 import Image from 'next/image'
 import bg from '@/public/bg-3.png'
+import { AppProviders } from '@/components/AppProviders'
 import './globals.css'
 
 const jetbrainsMono = JetBrains_Mono({ 
@@ -52,7 +53,9 @@ export default function RootLayout({
           <Image src={bg} alt="Background" className="h-full w-full object-cover" />
         </div>
         <div className="fixed inset-0 -z-10 bg-black/55" />
-        {children}
+        <AppProviders>
+          {children}
+        </AppProviders>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

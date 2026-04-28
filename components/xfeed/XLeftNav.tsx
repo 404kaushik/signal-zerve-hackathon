@@ -63,7 +63,7 @@ export function XLeftNav({ generating = false }: XLeftNavProps) {
             <div className="flex items-center gap-2 justify-center">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#7bc49a]" />
               <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-white">
-                please stay on this page while the ai research agent loads
+                loading...
               </span>
             </div>
           </div>

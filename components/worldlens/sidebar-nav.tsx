@@ -2,8 +2,8 @@
 
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { HugeIcon } from '@/components/worldlens/huge-icon'
 
 const navItems = [
@@ -15,7 +15,13 @@ const navItems = [
 
 export function SidebarNav() {
   const pathname = usePathname()
+  const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
+
+  // Prefetch the feed route so the page bundle is ready before the user clicks.
+  useEffect(() => {
+    router.prefetch('/app/x')
+  }, [router])
 
   return (
     <>

@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { HugeiconsIcon } from '@hugeicons/react'
 import {
@@ -68,7 +69,93 @@ const tickers = [
 
 const mono = "'JetBrains Mono', 'Courier New', monospace"
 
+const PREFETCH_KEY = 'signal:prefeed:v1'
+
+function hasPrefetched(): boolean {
+  if (typeof sessionStorage === 'undefined') return false
+  try {
+    const raw = sessionStorage.getItem(PREFETCH_KEY)
+    if (!raw) return false
+    const data = JSON.parse(raw)
+    return Boolean(data?.ts && Date.now() - data.ts < 20 * 60 * 1000)
+  } catch {
+    return false
+  }
+}
+
 export function SignalLanding() {
+  const router = useRouter()
+  const [prefetched, setPrefetched] = useState(false)
+
+  useEffect(() => {
+    if (hasPrefetched()) {
+      setPrefetched(true)
+      return
+    }
+    let active = true
+    const controller = new AbortController()
+    const doPrefetch = async () => {
+      try {
+        const res = await fetch('/api/x/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mode: 'feed',
+            batchSize: 12,
+            batchIndex: 0,
+            signalData: { signals: null, sentiment: null, trending: null },
+            priorAngles: [],
+            priorTopics: [],
+          }),
+          signal: controller.signal,
+        })
+        if (!active || !res.ok || !res.body) return
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+        const posts: unknown[] = []
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
+          const frames = buffer.split('\n\n').slice(0, -1)
+          buffer = frames[frames.length - 1] || ''
+          for (const frame of frames) {
+            const lines = frame.split('\n').map((l) => l.trim()).filter(Boolean)
+            let event = 'message'
+            const data: string[] = []
+            for (const line of lines) {
+              if (line.startsWith('event:')) event = line.slice(6).trim()
+              if (line.startsWith('data:')) data.push(line.slice(5).trim())
+            }
+            if (!data.length) continue
+            try {
+              const obj = JSON.parse(data.join('\n'))
+              if (event === 'post') posts.push(obj)
+            } catch {
+              // skip invalid
+            }
+          }
+        }
+        if (active && posts.length > 0) {
+          sessionStorage.setItem(PREFETCH_KEY, JSON.stringify({ ts: Date.now(), posts }))
+          setPrefetched(true)
+        }
+      } catch {
+        // non-fatal
+      }
+    }
+    doPrefetch()
+    return () => {
+      active = false
+      controller.abort()
+    }
+  }, [])
+
+  const handleOpenFeed = () => {
+    router.push('/app/x')
+  }
+
   return (
     <>
       <style>{`
@@ -155,7 +242,10 @@ export function SignalLanding() {
 
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.3 }}
               style={{ marginTop: 36, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <Link href="/app/briefing" className="sl-btn-primary">
+              <Link href="/app/x" className="sl-btn-primary">
+                Signal feed<span style={{ opacity: 0.4 }}>→</span>
+              </Link>
+              <Link href="/app/briefing" className="sl-btn-secondary">
                 World overview<span style={{ opacity: 0.4 }}>→</span>
               </Link>
             </motion.div>
@@ -190,7 +280,7 @@ export function SignalLanding() {
                 </h2>
                 <p style={{ fontFamily: mono, fontSize: 13, lineHeight: 1.9, color: '#555550', marginTop: 20 }}>
                   Signal feed combines AI personas, explicit stance, and cited sources—so each post is more than a hot take.
-                  A compressed briefing you can verify without leaving this webpage. The vision was to elemenate the need to have a social media feed filled with adds and ai slop when all you are looking for is what's trending and what are people saying about it.
+                  A compressed briefing you can verify without leaving this webpage. The vision was to eliminate the need to have a social media feed filled with adds and AI slop videos when all you are looking for is what's trending and what are people saying about it.
                 </p>
                 <Link href="/app/x" className="sl-btn-primary" style={{ marginTop: 28, display: 'inline-flex' }}>Try Signal feed →</Link>
               </div>
